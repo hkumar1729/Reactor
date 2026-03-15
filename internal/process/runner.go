@@ -19,7 +19,7 @@ func NewRunner(command string) *Runner {
 
 func (r *Runner) Start() {
 	r.cmd = exec.Command("sh", "-c", r.command)
-	r.cmd.Stdout = os.Stdin
+	r.cmd.Stdout = os.Stdout
 	r.cmd.Stderr = os.Stderr
 
 	err := r.cmd.Start()
@@ -29,7 +29,9 @@ func (r *Runner) Start() {
 }
 
 func (r *Runner) Stop() {
-	if r.cmd != nil && r.cmd.Process != nil {
-		r.cmd.Process.Kill()
+	if r.cmd == nil && r.cmd.Process == nil {
+		return
 	}
+	killProcessTree(r.cmd.Process.Pid)
+	r.cmd.Wait()
 }
