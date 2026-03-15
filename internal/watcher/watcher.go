@@ -2,6 +2,8 @@ package watcher
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -12,6 +14,25 @@ func StartWatching(events chan struct{}) {
 		log.Fatal(err)
 	}
 	defer w.Close()
+
+	// add all directories
+	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			log.Println("watching:", path)
+			return w.Add(path)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	for {
 		select {
