@@ -4,12 +4,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
 
 func StartWatching(events chan struct{}) {
 	w, err := fsnotify.NewWatcher()
+	lastModified := make(map[string]time.Time)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,9 +44,31 @@ func StartWatching(events chan struct{}) {
 			if !ok {
 				return
 			}
-			if event.Has(fsnotify.Write) {
-				log.Println("file modified:", event.Name)
-				events <- struct{}{}
+			// ignore unwanted operations
+			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) == 0 {
+				continue
+			}
+			// handle new directories
+			if event.Op&fsnotify.Create != 0 {
+				info, err := os.Stat(event.Name)
+				if err == nil && info.IsDir() {
+					w.Add(event.Name)
+					continue
+				}
+			}
+			info, err := os.Stat(event.Name)
+			if err != nil || info.IsDir() {
+				continue
+			}
+			lastTime, exists := lastModified[event.Name]
+			if exists && info.ModTime().Equal(lastTime) {
+				continue
+			}
+			lastModified[event.Name] = info.ModTime()
+			log.Println("file changed:", event.Name)
+			select {
+			case events <- struct{}{}:
+			default:
 			}
 		case err := <-w.Errors:
 			log.Println("Error:", err)
