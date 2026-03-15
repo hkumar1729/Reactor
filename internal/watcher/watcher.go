@@ -26,7 +26,6 @@ func StartWatching(events chan struct{}) {
 			if _, ok := ignoreDirs[info.Name()]; ok {
 				return filepath.SkipDir
 			}
-			log.Println("watching", path)
 			return w.Add(path)
 		}
 
